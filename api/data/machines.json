@@ -1,0 +1,14 @@
+[
+  {
+    "id": "M12345",
+    "name": "Wrapper Machine",
+    "normal_temperature": 30,
+    "temperature_recordings": []
+  },
+  {
+    "id": "M12346",
+    "name": "Manufacturing Machine",
+    "normal_temperature": 75,
+    "temperature_recordings": []
+  }
+]
