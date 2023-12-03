@@ -1,15 +1,23 @@
 import { useState, useEffect, useRef } from 'react'
 import { Row, Input, Col, Button, Card, CardHeader, CardBody, CardImg } from 'reactstrap'
-import mqtt from 'mqtt'
+import Swal from 'sweetalert2'
+
+import { 
+  getErrMsg, 
+  getUpdatedMachineFromRef,
+  getValueColor,
+  mqttConnect,
+  mqttDisconnect,
+  mqttPublish,
+  mqttSub,
+  mqttUnSub
+} from './utils/utils'
+
 import MachineRow from '../../components/MachineRow'
 import tempJpg from '../../assets/img/temp.jpg'
-
 import { useGetMachinesQuery, useUpdateMachineMutation } from '../../redux/api/machinesApiSlice'
-import Swal from 'sweetalert2'
-import { Machine, emptyMachine } from '../../types/domain/machine.model'
 import { alerts } from '../../components/feedback/alerts'
-
-import { getErrMsg } from './utils/utils'
+import { Machine, emptyMachine } from '../../types/domain/machine.model'
 
 const TemperatureChecker = () => {
   const [client, setClient] = useState<any>(null)
@@ -18,7 +26,7 @@ const TemperatureChecker = () => {
   const [running, setRunning] = useState<boolean>(false)
   const [selectedMachine, setSelectedMachine] = useState<Machine | undefined>(undefined)
 
-  const currentMachine = useRef(emptyMachine)
+  const machineRef = useRef(emptyMachine)
 
   const {
     data: machines,
@@ -40,43 +48,19 @@ const TemperatureChecker = () => {
 
   useEffect(() => {
     if (client) {
-      client.on('connect', () => {
-        console.log('connection successful')
-      })
-
+      client.on('connect', () => console.log('connection successful'))
       client.on('error', (err: string) => {
         console.error('Connection error: ', err)
         client.end()
       })
-
-      client.on('message', async (topic: string, message: number) => {
-        const newPayload = { topic, message: message.toString() }
-
-        if (currentMachine.current === emptyMachine) return
-
-        const newRecording = {
-          timestamp: new Date(Date.now()).getTime(),
-          device_id: "D5555",
-          temperature: {
-            value: +newPayload.message,
-            unit: "Celsius"
-          }
-        }
-
-        const updatedMachine = {
-          ...currentMachine.current,
-          temperature_recordings: [
-            ...currentMachine.current.temperature_recordings, 
-            newRecording
-          ]
-        }
-
+      client.on('message', async (topic: string, message: string) => {
+        if (machineRef.current === emptyMachine) return
+        const messageObj = JSON.parse(message)
+        const updatedMachine = getUpdatedMachineFromRef(message, machineRef.current)
         await updateMachine(updatedMachine)
-
-        setPayload(newPayload)
+        setPayload(messageObj)
         setSelectedMachine(updatedMachine)
-
-        console.log(`received message: ${newPayload.message} from topic: ${newPayload.topic}`)
+        console.log(`received message: ${message} from topic: ${topic}`)
       })
     }
   }, [client, running])
@@ -85,110 +69,26 @@ const TemperatureChecker = () => {
     let intervalId: NodeJS.Timeout | null = null
   
     if (running) {
-      mqttSub()
+      mqttSub(client)
       intervalId = setInterval(() => {
-        mqttPublish()
+        mqttPublish(client, selectedMachine)
       }, requiredInterval * 1000)
     }
   
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId)
-      }
-  
-      mqttUnSub()
-      mqttDisconnect()
+      if (intervalId) clearInterval(intervalId)
+      mqttUnSub(client)
+      mqttDisconnect(client)
     }
   }, [running, requiredInterval])
 
   useEffect(() => {
-    if (selectedMachine) currentMachine.current = selectedMachine
+    if (selectedMachine) machineRef.current = selectedMachine
   }, [selectedMachine])
 
-  const mqttSub = () => {
-    if (client) {
-      const topic = "machineTemperature"
-      const qos = 2
-
-      client.subscribe(topic, qos, (error: string) => {
-        if (error) {
-          console.log('Subscribe to topics error', error)
-          return
-        }
-        console.log(`Subscribe to topic: ${topic}`)
-      })
-    }
-  }
-
-  const mqttUnSub = () => {
-    if (client) {
-      const topic = "machineTemperature"
-      const qos = 2
-
-      client.unsubscribe(topic, qos, (error: any) => {
-        if (error) {
-          console.log('Unsubscribe error', error)
-          return
-        }
-        console.log(`unsubscribed topic: ${topic}`)
-      })
-    }
-  }
-
-  const mqttPublish = () => {
-    if (client && selectedMachine) {
-      const topic = "machineTemperature"
-      const qos = 2
-      const temp = selectedMachine.normal_temperature
-      const increase = Math.random() > 0.5
-      const difference = (temp * 0.1 * Math.random()).toFixed(1)
-      const newPayload = increase ? (temp + (+difference)).toString() : (temp - (+difference)).toString()
-
-      client.publish(topic, newPayload, { qos }, (error: any) => {
-        if (error) {
-          console.log('Publish error: ', error)
-        }
-      })
-    }
-  }
-
-  const mqttConnect = () => {
-    const options = {
-      clean: true,
-      reconnectPeriod: 1000, // ms
-      connectTimeout: 30 * 1000, // ms
-    }
-
-    setClient(mqtt.connect(import.meta.env.VITE_HIVE_URI, options))
-  }
-
-  const mqttDisconnect = () => {
-    if (client) {
-      try {
-        client.end(false, () => {
-          console.log('disconnected successfully')
-        })
-      } catch (error) {
-        console.log('disconnect error:', error)
-      }
-    }
-  }
-
-  if (isLoading) {
-    alerts.loadingAlert("Fetching machines", "Loading...")
-    return
-  }
-
-  if (isError) {
-    alerts.errorAlert(`${getErrMsg(error)}`, "Error")
-    return
-  }
-
-  if (isUpdateError && updateError) {
-    alerts.errorAlert(`${getErrMsg(updateError)}`, "Error")
-    return
-  }
-
+  if (isLoading) alerts.loadingAlert("Fetching machines", "Loading...")
+  if (isError) alerts.errorAlert(`${getErrMsg(error)}`, "Error")
+  if (isUpdateError && updateError) alerts.errorAlert(`${getErrMsg(updateError)}`, "Error")
   if (isSuccess || updateSuccess) Swal.close()
 
   return (
@@ -196,31 +96,15 @@ const TemperatureChecker = () => {
       <CardHeader>
         <Row>
           <Col>
-            <span className='heading'>Temperature Recorder</span>
+            <span className='heading'>Machine Health Recorder</span>
           </Col>
         </Row>
       </CardHeader>
       <CardBody>
         <Row>
           <Col md="8">
-            {machines?.map((machine: any) => {
-              return (
-                <MachineRow 
-                  key={machine.id} 
-                  machine={machine}
-                  setSelectedMachine={setSelectedMachine}
-                />
-              )
-            })}
-            <Row className='mt-4'>
+            <Row>
               <Col>
-                <Row>
-                  <Col>
-                    <span className="form-control-label">
-                      {selectedMachine ? selectedMachine?.name : 'Pick a machine to record'}
-                    </span>
-                  </Col>
-                </Row>
                 <Row>
                   <Col>
                     <label 
@@ -241,16 +125,14 @@ const TemperatureChecker = () => {
                       onChange={(e) => setRequiredInterval(+e.target.value)}
                     />
                   </Col>
-                </Row>
-                <Row className='mb-4'>
                   <Col>
                     {!running 
                       ? <Button
                         type='button'
-                        color={selectedMachine ? 'info' : undefined}
+                        color={selectedMachine ? 'success' : undefined}
                         disabled={!selectedMachine}
                         onClick={() => {
-                          mqttConnect()
+                          mqttConnect({ setClient })
                           setRunning(true)
                         }}
                       >
@@ -267,27 +149,135 @@ const TemperatureChecker = () => {
                   </Col>
                 </Row>
               </Col>
-              <Col 
-                style={{ fontSize: "50px", color: "orange" }} 
-                className="heading text-center"
-              >
-                {payload?.message && payload?.message + '\u00B0C'}
-              </Col>
             </Row>
+            {machines?.map((machine: any) => {
+              return (
+                <MachineRow 
+                  key={machine.id} 
+                  machine={machine}
+                  setSelectedMachine={setSelectedMachine}
+                />
+              )
+            })}
           </Col>
           <Col md="4">
-            <Card>
+            <Card className='pb-4'>
               <CardImg alt="temperature-icon" src={tempJpg} top />
+              <Row>
+                <Col className='heading text-center mt-4'>
+                  {selectedMachine ? selectedMachine.name : 'Select Machine'}
+                </Col>
+              </Row>
               <Row>
                 <Col>
                   <div className="card-profile-stats d-flex justify-content-center">
                     <div>
-                      <span className="heading">{machines?.length}</span>
-                      <span className="description">Machines</span>
+                      <span 
+                        style={{ 
+                          textTransform: "none",
+                          color: getValueColor(
+                            payload?.temperature?.temperature, 
+                            machineRef?.current?.temperature.min, 
+                            machineRef?.current?.temperature.max
+                          )
+                        }}
+                        className="heading"
+                      >
+                        {payload?.temperature && `${payload.temperature.temperature}` + '\u00B0C'}
+                      </span>
+                      <span className="description">Temperature</span>
                     </div>
                     <div>
-                      <span className="heading">0</span>
-                      <span className="description">Warnings</span>
+                      <span 
+                        style={{ 
+                          textTransform: "none",
+                          color: getValueColor(
+                            payload?.vibration?.x_axis, 
+                            machineRef?.current?.vibration.min.x_axis, 
+                            machineRef?.current?.vibration.max.x_axis
+                          )
+                        }}
+                        className="heading"
+                      >
+                        {payload?.vibration && `${payload.vibration.x_axis}g`}
+                      </span>
+                      <span className="description">X-Axis Vibration</span>
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+              <Row>
+                <Col>
+                  <div className="card-profile-stats d-flex justify-content-center">
+                    <div>
+                      <span 
+                        style={{ 
+                          textTransform: "none",
+                          color: getValueColor(
+                            payload?.vibration?.y_axis, 
+                            machineRef?.current?.vibration?.min.y_axis, 
+                            machineRef?.current?.vibration?.max.y_axis
+                          )
+                        }}
+                        className="heading"
+                      >
+                        {payload?.vibration && `${payload.vibration.y_axis}g`}
+                      </span>
+                      <span className="description">Y-Axis Vibration</span>
+                    </div>
+                    <div>
+                      <span 
+                        style={{ 
+                          textTransform: "none",
+                          color: getValueColor(
+                            payload?.vibration?.z_axis, 
+                            machineRef?.current?.vibration?.min.z_axis, 
+                            machineRef?.current?.vibration?.max.z_axis
+                          )
+                        }}
+                        className="heading"
+                      >
+                        {payload?.vibration && `${payload.vibration.z_axis}g`}
+                      </span>
+                      <span className="description">Z-Axis Vibration</span>
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+              <Row>
+                <Col>
+                  <div className="card-profile-stats d-flex justify-content-center">
+                    <div>
+                      <span 
+                        style={{ 
+                          textTransform: "none",
+                          color: getValueColor(
+                            payload?.pressure?.pressure, 
+                            machineRef?.current?.pressure.min, 
+                            machineRef?.current?.pressure.max
+                          )
+                        }}
+                        className="heading"
+                      >
+                        {payload?.temperature && `${payload?.pressure.pressure}kPa`}
+                      </span>
+                      <span className="description">Pressure</span>
+                    </div>
+                    <div>
+                      <span 
+                        style={{ 
+                          textTransform: "none",
+                          color: getValueColor(
+                            payload?.humidity?.humidity, 
+                            machineRef?.current?.humidity.min, 
+                            machineRef?.current?.humidity.max
+                          )
+                        }}
+                        className="heading"
+                      >
+                        {payload?.temperature && `${payload.humidity.humidity}%`}
+                      </span>
+                      <span className="description">Humidity</span>
                     </div>
                   </div>
                 </Col>

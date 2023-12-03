@@ -2,13 +2,89 @@
   {
     "id": "M12345",
     "name": "Wrapper Machine",
-    "normal_temperature": 30,
-    "temperature_recordings": []
+    "temperature": {
+      "normal": 30,
+      "min": 27.2,
+      "max": 32.8,
+      "unit": "C",
+      "recordings": []
+    },
+    "vibration": {
+      "unit": "g",
+      "normal": {
+        "x_axis": 0.02, 
+        "y_axis": 0.015, 
+        "z_axis": 0.03
+      },
+      "min": {
+        "x_axis": 0.0181, 
+        "y_axis": 0.0136, 
+        "z_axis": 0.0272
+      },
+      "max": {
+        "x_axis": 0.0219, 
+        "y_axis": 0.0164, 
+        "z_axis": 0.035
+      },
+      "recordings": []
+    },
+    "pressure": {
+      "unit": "kPa",
+      "normal": 100.2,
+      "min": 90.8,
+      "max": 110,
+      "recordings": []
+    },
+    "humidity": {
+      "unit": "%",
+      "normal": 40.8,
+      "min": 36,
+      "max": 46,
+      "recordings": []
+    }
   },
   {
     "id": "M12346",
     "name": "Manufacturing Machine",
-    "normal_temperature": 75,
-    "temperature_recordings": []
+    "temperature": {
+      "normal": 75,
+      "min": 68,
+      "max": 82,
+      "unit": "C",
+      "recordings": []
+    },
+    "vibration": {
+      "unit": "g",
+      "normal": {
+        "x_axis": 0.03, 
+        "y_axis": 0.02, 
+        "z_axis": 0.04
+      },
+      "min": {
+        "x_axis": 0.0271, 
+        "y_axis": 0.0181, 
+        "z_axis": 0.0361
+      },
+      "max": {
+        "x_axis": 0.0329, 
+        "y_axis": 0.0219, 
+        "z_axis": 0.0272
+      },
+      "recordings": []
+    },
+    "pressure": {
+      "unit": "kPa",
+      "normal": 110,
+      "min": 99.8,
+      "max": 125,
+      "recordings": []
+    },
+    "humidity": {
+      "unit": "%",
+      "normal": 30,
+      "min": 26,
+      "max": 35,
+      "recordings": []
+    }
   }
 ]
