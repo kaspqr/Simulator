@@ -1,4 +1,5 @@
 import mqtt from 'mqtt'
+import { Dispatch, SetStateAction } from 'react'
 
 import { SerializedError } from '@reduxjs/toolkit'
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query'
@@ -9,8 +10,7 @@ import {
   PressureRecording, 
   TemperatureRecording, 
   VibrationRecording 
-} from '../../../types/domain/machine.model'
-import { Dispatch, SetStateAction } from 'react'
+} from '../../types/domain/machine.model'
 
 export function isFetchBaseQueryError(
   error: unknown
@@ -218,4 +218,26 @@ export const mqttSub = (client: any) => {
 
 export const getValueColor = (value: number, min: number, max: number) => {
   return value < min || value > max ? "red" : undefined
+}
+
+export const getChartData = (recordings: any, key: string) => {
+  const data = recordings?.map((recording: any) => {
+    return {
+      name: new Date(recording?.timestamp).toLocaleString(),
+      [key]: recording?.[key]
+    }
+  })
+  return data
+}
+
+export const getVibrationChartData = (recordings: any) => {
+  const data = recordings?.map((recording: any) => {
+    return {
+      name: new Date(recording?.timestamp).toLocaleString(),
+      xAxis: recording?.x_axis,
+      yAxis: recording?.y_axis,
+      zAxis: recording?.z_axis
+    }
+  })
+  return data
 }

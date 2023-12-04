@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, MouseEvent } from 'react'
 import { Row, Input, Col, Button, Card, CardHeader, CardBody, CardImg } from 'reactstrap'
+import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 
 import { 
@@ -11,13 +12,14 @@ import {
   mqttPublish,
   mqttSub,
   mqttUnSub
-} from './utils/utils'
+} from '../utils/utils'
 
-import MachineRow from '../../components/MachineRow'
 import tempJpg from '../../assets/img/temp.jpg'
 import { useGetMachinesQuery, useUpdateMachineMutation } from '../../redux/api/machinesApiSlice'
 import { alerts } from '../../components/feedback/alerts'
 import { Machine, emptyMachine } from '../../types/domain/machine.model'
+import { ReactTable } from '../../components/react-table/ReactTable'
+import { machinesTableColumns } from '../tables/Machines.table'
 
 const TemperatureChecker = () => {
   const [client, setClient] = useState<any>(null)
@@ -27,6 +29,8 @@ const TemperatureChecker = () => {
   const [selectedMachine, setSelectedMachine] = useState<Machine | undefined>(undefined)
 
   const machineRef = useRef(emptyMachine)
+
+  const navigate = useNavigate()
 
   const {
     data: machines,
@@ -86,6 +90,15 @@ const TemperatureChecker = () => {
     if (selectedMachine) machineRef.current = selectedMachine
   }, [selectedMachine])
 
+  const onPickMachine = (e: MouseEvent) => {
+    e.preventDefault()
+    const { id } = e.currentTarget
+    const machineToCheck: Machine | undefined = machines.find(
+      (machine: Machine) => machine.id === id
+    )
+    if (machineToCheck) setSelectedMachine(machineToCheck)
+  }
+
   if (isLoading) alerts.loadingAlert("Fetching machines", "Loading...")
   if (isError) alerts.errorAlert(`${getErrMsg(error)}`, "Error")
   if (isUpdateError && updateError) alerts.errorAlert(`${getErrMsg(updateError)}`, "Error")
@@ -103,71 +116,86 @@ const TemperatureChecker = () => {
       <CardBody>
         <Row>
           <Col md="8">
-            <Row>
-              <Col>
-                <Row>
-                  <Col>
-                    <label 
-                      className="form-control-label" 
-                      htmlFor='required-interval'
-                    >
-                      Interval in seconds
-                    </label>
-                  </Col>
-                </Row>
-                <Row className='mb-2'>
-                  <Col>
-                    <Input 
-                      type='number'
-                      name='required-interval'
-                      min={1}
-                      value={requiredInterval}
-                      onChange={(e) => setRequiredInterval(+e.target.value)}
-                    />
-                  </Col>
-                  <Col>
-                    {!running 
-                      ? <Button
-                        type='button'
-                        color={selectedMachine ? 'success' : undefined}
-                        disabled={!selectedMachine}
-                        onClick={() => {
-                          mqttConnect({ setClient })
-                          setRunning(true)
-                        }}
+            <Card className='p-4'>
+              <Row>
+                <Col>
+                  <Row>
+                    <Col>
+                      <label 
+                        className="form-control-label" 
+                        htmlFor='required-interval'
                       >
-                        Start Recording
-                      </Button>
-                      : <Button
-                        type='button'
-                        color='danger'
-                        onClick={() => setRunning(false)}
-                      >
-                        Stop Recording
-                      </Button>
-                    }
-                  </Col>
-                </Row>
-              </Col>
-            </Row>
-            {machines?.map((machine: any) => {
-              return (
-                <MachineRow 
-                  key={machine.id} 
-                  machine={machine}
-                  setSelectedMachine={setSelectedMachine}
-                />
-              )
-            })}
+                        Interval in seconds
+                      </label>
+                    </Col>
+                  </Row>
+                  <Row className='mb-2'>
+                    <Col>
+                      <Input 
+                        type='number'
+                        name='required-interval'
+                        min={1}
+                        value={requiredInterval}
+                        onChange={(e) => setRequiredInterval(+e.target.value)}
+                      />
+                    </Col>
+                    <Col>
+                      {!running 
+                        ? <Button
+                          type='button'
+                          color={selectedMachine ? 'success' : undefined}
+                          disabled={!selectedMachine}
+                          onClick={() => {
+                            mqttConnect({ setClient })
+                            setRunning(true)
+                          }}
+                        >
+                          Start Recording
+                        </Button>
+                        : <Button
+                          type='button'
+                          color='danger'
+                          onClick={() => setRunning(false)}
+                        >
+                          Stop Recording
+                        </Button>
+                      }
+                    </Col>
+                  </Row>
+                </Col>
+              </Row>
+            </Card>
+            <Card className='p-4'>
+              <ReactTable 
+                data={machines || []}
+                columns={machinesTableColumns({
+                  onPickButtonClick: onPickMachine,
+                })}
+              />
+            </Card>
           </Col>
           <Col md="4">
             <Card className='pb-4'>
               <CardImg alt="temperature-icon" src={tempJpg} top />
               <Row>
                 <Col className='heading text-center mt-4'>
-                  {selectedMachine ? selectedMachine.name : 'Select Machine'}
+                  {selectedMachine ? selectedMachine.name : 'Pick Machine'}
                 </Col>
               </Row>
+              {selectedMachine && 
+                <Row className='mt-2'>
+                  <Col className='text-center'>
+                    <Button
+                      color='info'
+                      size='sm'
+                      type='button'
+                      onClick={() => navigate(`/infograph/${selectedMachine.id}`)}
+                    >
+                      View Charts
+                    </Button>
+                  </Col>
+                </Row>
+              }
               <Row>
                 <Col>
                   <div className="card-profile-stats d-flex justify-content-center">
