@@ -21,7 +21,7 @@ import { Machine, emptyMachine } from '../../types/domain/machine.model'
 import { ReactTable } from '../../components/react-table/ReactTable'
 import { machinesTableColumns } from '../tables/Machines.table'
 
-const TemperatureChecker = () => {
+const HealthChecker = () => {
   const [client, setClient] = useState<any>(null)
   const [payload, setPayload] = useState<any>({})
   const [requiredInterval, setRequiredInterval] = useState<number>(1)
@@ -318,4 +318,4 @@ const TemperatureChecker = () => {
   )
 }
 
-export default TemperatureChecker
+export default HealthChecker
