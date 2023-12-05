@@ -7,7 +7,7 @@ import { useGetMachinesQuery } from '../../redux/api/machinesApiSlice'
 import { Machine } from '../../types/domain/machine.model'
 import { 
   TEMPERATURE,
-  VIBRARTION,
+  VIBRATION,
   PRESSURE,
   HUMIDITY,
   X_AXIS,
@@ -53,7 +53,7 @@ const Graph = () => {
           </Button>
           <Button
             color='primary'
-            onClick={() => setHealth(VIBRARTION)}
+            onClick={() => setHealth(VIBRATION)}
             type='button'
           >
             Vibration
@@ -96,7 +96,7 @@ const Graph = () => {
                 ? pressureData
                 : health === HUMIDITY
                   ? humidityData
-                  : health === VIBRARTION
+                  : health === VIBRATION
                     ? vibrationData
                     : undefined
             }
@@ -106,7 +106,7 @@ const Graph = () => {
             <YAxis />
             <Tooltip />
             <CartesianGrid stroke="#f5f5f5" />
-            {health === VIBRARTION
+            {health === VIBRATION
               ? <>
                 <Line type="monotone" dataKey={X_AXIS} stroke="red" />
                 <Line type="monotone" dataKey={Y_AXIS} stroke="rebeccapurple" />

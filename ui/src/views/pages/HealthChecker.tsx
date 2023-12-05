@@ -7,19 +7,21 @@ import {
   getErrMsg, 
   getUpdatedMachineFromRef,
   getValueColor,
-  mqttConnect,
-  mqttDisconnect,
-  mqttPublish,
-  mqttSub,
-  mqttUnSub
+  mqttPublishHealthCheck,
 } from '../utils/utils'
 
 import tempJpg from '../../assets/img/temp.jpg'
+import { mqttConnect, mqttDisconnect, mqttSub, mqttUnSub } from '../../mqtt/mqttClient'
+import { HealthCheckerMqttOptions } from '../consts/mqtt.const'
 import { useGetMachinesQuery, useUpdateMachineMutation } from '../../redux/api/machinesApiSlice'
 import { alerts } from '../../components/feedback/alerts'
 import { Machine, emptyMachine } from '../../types/domain/machine.model'
 import { ReactTable } from '../../components/react-table/ReactTable'
 import { machinesTableColumns } from '../tables/Machines.table'
+import { SelectField } from '../../components/SelectField'
+import { deviceSelectOptions } from '../mocks/devices.mocks'
+import { SelectOption } from '../../types/ui/common-ui'
+import { HEALTH_CHECK_TOPIC } from '../consts'
 
 const HealthChecker = () => {
   const [client, setClient] = useState<any>(null)
@@ -27,6 +29,7 @@ const HealthChecker = () => {
   const [requiredInterval, setRequiredInterval] = useState<number>(1)
   const [running, setRunning] = useState<boolean>(false)
   const [selectedMachine, setSelectedMachine] = useState<Machine | undefined>(undefined)
+  const [selectedDevices, setSelectedDevices] = useState<SelectOption[]>([])
 
   const machineRef = useRef(emptyMachine)
 
@@ -73,15 +76,19 @@ const HealthChecker = () => {
     let intervalId: NodeJS.Timeout | null = null
   
     if (running) {
-      mqttSub(client)
+      mqttSub(client, HEALTH_CHECK_TOPIC, 2)
       intervalId = setInterval(() => {
-        mqttPublish(client, selectedMachine)
+        mqttPublishHealthCheck({ 
+          client, 
+          machine: selectedMachine, 
+          checkOptions: selectedDevices 
+        })
       }, requiredInterval * 1000)
     }
   
     return () => {
       if (intervalId) clearInterval(intervalId)
-      mqttUnSub(client)
+      mqttUnSub(client, HEALTH_CHECK_TOPIC, 2)
       mqttDisconnect(client)
     }
   }, [running, requiredInterval])
@@ -119,7 +126,7 @@ const HealthChecker = () => {
             <Card className='p-4'>
               <Row>
                 <Col>
-                  <Row>
+                  <Row className='mb-3'>
                     <Col>
                       <label 
                         className="form-control-label" 
@@ -127,10 +134,6 @@ const HealthChecker = () => {
                       >
                         Interval in seconds
                       </label>
-                    </Col>
-                  </Row>
-                  <Row className='mb-2'>
-                    <Col>
                       <Input 
                         type='number'
                         name='required-interval'
@@ -140,13 +143,35 @@ const HealthChecker = () => {
                       />
                     </Col>
                     <Col>
+                      <SelectField 
+                        id="devices"
+                        label="Devices"
+                        options={deviceSelectOptions}
+                        isMulti
+                        value={selectedDevices}
+                        onChange={(newValue: unknown) => {
+                          if (newValue) {
+                            const options = newValue as SelectOption[]
+                            setSelectedDevices(options)
+                          }
+                        }}
+                      />
+                    </Col>
+                  </Row>
+                  <Row className='mb-2'>
+                    <Col />
+                    <Col className='text-right'>
                       {!running 
                         ? <Button
                           type='button'
-                          color={selectedMachine ? 'success' : undefined}
-                          disabled={!selectedMachine}
+                          color={selectedMachine && selectedDevices.length ? 'success' : undefined}
+                          disabled={!selectedMachine || !selectedDevices.length}
                           onClick={() => {
-                            mqttConnect({ setClient })
+                            const newClient = mqttConnect({
+                              options: HealthCheckerMqttOptions,
+                              uri: import.meta.env.VITE_HIVE_URI
+                            })
+                            setClient(newClient)
                             setRunning(true)
                           }}
                         >
@@ -205,8 +230,8 @@ const HealthChecker = () => {
                           textTransform: "none",
                           color: getValueColor(
                             payload?.temperature?.temperature, 
-                            machineRef?.current?.temperature.min, 
-                            machineRef?.current?.temperature.max
+                            machineRef?.current?.temperature?.min, 
+                            machineRef?.current?.temperature?.max
                           )
                         }}
                         className="heading"
@@ -221,8 +246,8 @@ const HealthChecker = () => {
                           textTransform: "none",
                           color: getValueColor(
                             payload?.vibration?.x_axis, 
-                            machineRef?.current?.vibration.min.x_axis, 
-                            machineRef?.current?.vibration.max.x_axis
+                            machineRef?.current?.vibration?.min?.x_axis, 
+                            machineRef?.current?.vibration?.max?.x_axis
                           )
                         }}
                         className="heading"
@@ -243,13 +268,13 @@ const HealthChecker = () => {
                           textTransform: "none",
                           color: getValueColor(
                             payload?.vibration?.y_axis, 
-                            machineRef?.current?.vibration?.min.y_axis, 
-                            machineRef?.current?.vibration?.max.y_axis
+                            machineRef?.current?.vibration?.min?.y_axis, 
+                            machineRef?.current?.vibration?.max?.y_axis
                           )
                         }}
                         className="heading"
                       >
-                        {payload?.vibration && `${payload.vibration.y_axis}g`}
+                        {payload?.vibration && `${payload.vibration?.y_axis}g`}
                       </span>
                       <span className="description">Y-Axis Vibration</span>
                     </div>
@@ -259,8 +284,8 @@ const HealthChecker = () => {
                           textTransform: "none",
                           color: getValueColor(
                             payload?.vibration?.z_axis, 
-                            machineRef?.current?.vibration?.min.z_axis, 
-                            machineRef?.current?.vibration?.max.z_axis
+                            machineRef?.current?.vibration?.min?.z_axis, 
+                            machineRef?.current?.vibration?.max?.z_axis
                           )
                         }}
                         className="heading"
@@ -281,13 +306,13 @@ const HealthChecker = () => {
                           textTransform: "none",
                           color: getValueColor(
                             payload?.pressure?.pressure, 
-                            machineRef?.current?.pressure.min, 
-                            machineRef?.current?.pressure.max
+                            machineRef?.current?.pressure?.min, 
+                            machineRef?.current?.pressure?.max
                           )
                         }}
                         className="heading"
                       >
-                        {payload?.temperature && `${payload?.pressure.pressure}kPa`}
+                        {payload?.pressure && `${payload?.pressure?.pressure}kPa`}
                       </span>
                       <span className="description">Pressure</span>
                     </div>
@@ -297,13 +322,13 @@ const HealthChecker = () => {
                           textTransform: "none",
                           color: getValueColor(
                             payload?.humidity?.humidity, 
-                            machineRef?.current?.humidity.min, 
-                            machineRef?.current?.humidity.max
+                            machineRef?.current?.humidity?.min, 
+                            machineRef?.current?.humidity?.max
                           )
                         }}
                         className="heading"
                       >
-                        {payload?.temperature && `${payload.humidity.humidity}%`}
+                        {payload?.humidity && `${payload.humidity.humidity}%`}
                       </span>
                       <span className="description">Humidity</span>
                     </div>

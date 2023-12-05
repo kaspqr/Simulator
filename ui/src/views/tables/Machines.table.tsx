@@ -13,11 +13,11 @@ export const machinesTableColumns = ({
       accessorKey: "name",
       cell: info => info.getValue(),
     },
-    {
+/*     {
       header: "ID",
       accessorKey: "id",
       cell: info => info.getValue(),
-    },
+    }, */
     {
       header: "",
       accessorKey: "id",

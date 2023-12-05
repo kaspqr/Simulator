@@ -1,16 +1,14 @@
-import mqtt from 'mqtt'
-import { Dispatch, SetStateAction } from 'react'
-
 import { SerializedError } from '@reduxjs/toolkit'
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query'
 
 import { 
-  HumidityRecording, 
   Machine, 
-  PressureRecording, 
-  TemperatureRecording, 
+  Recording, 
   VibrationRecording 
 } from '../../types/domain/machine.model'
+import { mqttPublish } from '../../mqtt/mqttClient'
+import { HEALTH_CHECK_TOPIC, HUMIDITY, HUMIDITY_CHECK_DEVICE_ID, PRESSURE, PRESSURE_CHECK_DEVICE_ID, TEMPERATURE, TEMPERATURE_CHECK_DEVICE_ID, VIBRATION, VIBRATION_CHECK_DEVICE_ID } from '../consts'
+import { SelectOption } from '../../types/ui/common-ui'
 
 export function isFetchBaseQueryError(
   error: unknown
@@ -47,22 +45,38 @@ export const getNewRecordingValue = (normalValue: number) => {
   return newValue
 }
 
-export const getNewTemperatureRecording = (normalTemp: number, deviceId: string) => {
-  const newTempValue = +getNewRecordingValue(normalTemp).toFixed(1)
-
-  const newTemp: TemperatureRecording = {
-    timestamp: new Date(Date.now()).getTime(),
-    device_id: deviceId,
-    temperature: newTempValue
-  }
-
-  return newTemp
+type HealthRecording = {
+  record: string;
+  normal: number; 
+  deviceId: string;
+  toFixedLength: number;
 }
 
-export const getNewVibrationRecording = (
-  normalVibration: Omit<VibrationRecording, "timestamp" | "device_id">, 
-  deviceId: string
-) => {
+export const getNewHealthRecording = ({
+  record,
+  normal,
+  deviceId,
+  toFixedLength
+}: HealthRecording) => {
+  const newValue = +getNewRecordingValue(normal).toFixed(toFixedLength)
+  const newRecording: Recording = {
+    timestamp: new Date(Date.now()).getTime(),
+    device_id: deviceId,
+    [record]: newValue
+  }
+
+  return newRecording
+}
+
+type VibrationRecordingProps = {
+  normalVibration: Omit<VibrationRecording, "timestamp" | "device_id">;
+  deviceId: string;
+}
+
+export const getNewVibrationRecording = ({
+  normalVibration, 
+  deviceId
+}: VibrationRecordingProps) => {
   const newVibrationX = +getNewRecordingValue(normalVibration.x_axis).toFixed(3)
   const newVibrationY = +getNewRecordingValue(normalVibration.y_axis).toFixed(3)
   const newVibrationZ = +getNewRecordingValue(normalVibration.z_axis).toFixed(3)
@@ -78,141 +92,103 @@ export const getNewVibrationRecording = (
   return newVibration
 }
 
-export const getNewPressureRecording = (normalPressure: number, deviceId: string) => {
-  const newPressureValue = +getNewRecordingValue(normalPressure).toFixed(1)
-
-  const newTemp: PressureRecording = {
-    timestamp: new Date(Date.now()).getTime(),
-    device_id: deviceId,
-    pressure: newPressureValue
-  }
-
-  return newTemp
-}
-
-export const getNewHumidityRecording = (normalHumidity: number, deviceId: string) => {
-  const newHumidityValue = +getNewRecordingValue(normalHumidity).toFixed(1)
-
-  const newTemp: HumidityRecording = {
-    timestamp: new Date(Date.now()).getTime(),
-    device_id: deviceId,
-    humidity: newHumidityValue
-  }
-
-  return newTemp
-}
-
 export const getUpdatedMachineFromRef = (message: string, machine: Machine) => {
   const messageObj = JSON.parse(message)
+
+  console.log(messageObj)
 
   const updatedMachine: Machine = {
     ...machine,
     temperature: {
       ...machine.temperature, 
-      recordings: [ 
-        ...machine.temperature.recordings,
-        messageObj.temperature
-      ]
+      recordings: messageObj.temperature 
+        ? [ ...machine.temperature.recordings, messageObj.temperature ]
+        : machine.temperature.recordings
     },
     vibration: {
       ...machine.vibration, 
-      recordings: [ 
-        ...machine.vibration.recordings,
-        messageObj.vibration
-      ]
+      recordings: messageObj.vibration
+        ? [ ...machine.vibration.recordings, messageObj.vibration ]
+        : machine.vibration.recordings
     },
     pressure: {
       ...machine.pressure, 
-      recordings: [ 
-        ...machine.pressure.recordings,
-        messageObj.pressure
-      ]
+      recordings: messageObj.pressure
+        ? [ ...machine.pressure.recordings, messageObj.pressure ]
+        : machine.pressure.recordings
     },
     humidity: {
       ...machine.humidity, 
-      recordings: [ 
-        ...machine.humidity.recordings,
-        messageObj.humidity
-      ]
+      recordings: messageObj.humidity 
+        ? [ ...machine.humidity.recordings, messageObj.humidity ]
+        : machine.humidity.recordings
     },
   }
 
   return updatedMachine
 }
 
-type MqttConnectProps = {
-  setClient: Dispatch<SetStateAction<any>>
+type HealthCheckPublishProps = {
+  client: any;
+  machine: Machine | undefined;
+  checkOptions: SelectOption[];
 }
 
-export const mqttConnect = ({ setClient }: MqttConnectProps) => {
-  const options = {
-    clean: true,
-    reconnectPeriod: 1000, // ms
-    connectTimeout: 30 * 1000, // ms
-  }
+export const mqttPublishHealthCheck = ({
+  client, 
+  machine,
+  checkOptions
+}: HealthCheckPublishProps) => {
+  if (client && machine) {
+    const topic = HEALTH_CHECK_TOPIC
+    const qos = 2
 
-  setClient(mqtt.connect(import.meta.env.VITE_HIVE_URI, options))
-}
+    const checks = checkOptions.map((option: SelectOption) => {
+      return option.label.split(' ')[0].toLowerCase()
+    })
 
-export const mqttDisconnect = (client: any) => {
-  if (client) {
-    try {
-      client.end(false, () => {
-        console.log('disconnected successfully')
+    console.log(checks)
+    console.log(checks.includes(TEMPERATURE))
+
+    const temperature = checks.includes(TEMPERATURE) 
+      ? getNewHealthRecording({ 
+        record: TEMPERATURE, 
+        normal: machine.temperature.normal, 
+        deviceId: TEMPERATURE_CHECK_DEVICE_ID, 
+        toFixedLength: 1 
       })
-    } catch (error) {
-      console.log('disconnect error:', error)
-    }
-  }
-}
+      : undefined
+    const pressure = checks.includes(PRESSURE)
+      ? getNewHealthRecording({ 
+        record: PRESSURE, 
+        normal: machine.pressure.normal, 
+        deviceId: PRESSURE_CHECK_DEVICE_ID, 
+        toFixedLength: 1 
+      })
+      : undefined
+    const humidity = checks.includes(HUMIDITY)
+      ? getNewHealthRecording({ 
+        record: HUMIDITY, 
+        normal: machine.humidity.normal, 
+        deviceId: HUMIDITY_CHECK_DEVICE_ID, 
+        toFixedLength: 1 
+      })
+      : undefined
+    const vibration = checks.includes(VIBRATION)
+      ? getNewVibrationRecording({
+        normalVibration: machine.vibration.normal, 
+        deviceId: VIBRATION_CHECK_DEVICE_ID
+      })
+      : undefined
 
-export const mqttPublish = (client: any, selectedMachine: Machine | undefined) => {
-  if (client && selectedMachine) {
-    const topic = "healthCheck"
-    const qos = 2
+      const newPayload = JSON.stringify({ 
+        temperature, 
+        vibration, 
+        pressure, 
+        humidity 
+      })
 
-    const temperature = getNewTemperatureRecording(selectedMachine.temperature.normal, "D5555")
-    const vibration = getNewVibrationRecording(selectedMachine.vibration.normal, "D1234")
-    const pressure = getNewPressureRecording(selectedMachine.pressure.normal, "D5678")
-    const humidity = getNewHumidityRecording(selectedMachine.humidity.normal, "D9999")
-
-    const newPayload = JSON.stringify({ temperature, vibration, pressure, humidity })
-
-    client.publish(topic, newPayload, { qos }, (error: any) => {
-      if (error) {
-        console.log('Publish error: ', error)
-      }
-    })
-  }
-}
-
-export const mqttUnSub = (client: any) => {
-  if (client) {
-    const topic = "healthCheck"
-    const qos = 2
-
-    client.unsubscribe(topic, qos, (error: any) => {
-      if (error) {
-        console.log('Unsubscribe error', error)
-        return
-      }
-      console.log(`unsubscribed topic: ${topic}`)
-    })
-  }
-}
-
-export const mqttSub = (client: any) => {
-  if (client) {
-    const topic = "healthCheck"
-    const qos = 2
-
-    client.subscribe(topic, qos, (error: string) => {
-      if (error) {
-        console.log('Subscribe to topics error', error)
-        return
-      }
-      console.log(`Subscribe to topic: ${topic}`)
-    })
+    mqttPublish(client, newPayload, topic, qos)
   }
 }
 
