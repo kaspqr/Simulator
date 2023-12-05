@@ -25,6 +25,7 @@ const Graph = () => {
     selectFromResult: ({ data }: any) => ({
       machine: data?.find((machine: Machine) => machine.id === id)
     }),
+    refetchOnMountOrArgChange: true
   })
 
   const temperatureData = getChartData(machine?.temperature?.recordings, TEMPERATURE)
