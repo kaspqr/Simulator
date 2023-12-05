@@ -12,7 +12,7 @@ import {
 
 import tempJpg from '../../assets/img/temp.jpg'
 import { mqttConnect, mqttDisconnect, mqttSub, mqttUnSub } from '../../mqtt/mqttClient'
-import { HealthCheckerMqttOptions } from '../consts/mqtt.const'
+import { healthCheckerMqttOptions, standardInterval } from '../consts/mqtt.const'
 import { useGetMachinesQuery, useUpdateMachineMutation } from '../../redux/api/machinesApiSlice'
 import { alerts } from '../../components/feedback/alerts'
 import { Machine, emptyMachine } from '../../types/domain/machine.model'
@@ -26,7 +26,7 @@ import { HEALTH_CHECK_TOPIC } from '../consts'
 const HealthChecker = () => {
   const [client, setClient] = useState<any>(null)
   const [payload, setPayload] = useState<any>({})
-  const [requiredInterval, setRequiredInterval] = useState<number>(1)
+  const [requiredInterval, setRequiredInterval] = useState<number>(standardInterval)
   const [running, setRunning] = useState<boolean>(false)
   const [selectedMachine, setSelectedMachine] = useState<Machine | undefined>(undefined)
   const [selectedDevices, setSelectedDevices] = useState<SelectOption[]>([])
@@ -137,7 +137,7 @@ const HealthChecker = () => {
                       <Input 
                         type='number'
                         name='required-interval'
-                        min={1}
+                        min={3}
                         value={requiredInterval}
                         onChange={(e) => setRequiredInterval(+e.target.value)}
                       />
@@ -168,7 +168,7 @@ const HealthChecker = () => {
                           disabled={!selectedMachine || !selectedDevices.length}
                           onClick={() => {
                             const newClient = mqttConnect({
-                              options: HealthCheckerMqttOptions,
+                              options: healthCheckerMqttOptions,
                               uri: import.meta.env.VITE_HIVE_URI
                             })
                             setClient(newClient)

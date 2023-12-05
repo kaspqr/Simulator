@@ -147,9 +147,6 @@ export const mqttPublishHealthCheck = ({
       return option.label.split(' ')[0].toLowerCase()
     })
 
-    console.log(checks)
-    console.log(checks.includes(TEMPERATURE))
-
     const temperature = checks.includes(TEMPERATURE) 
       ? getNewHealthRecording({ 
         record: TEMPERATURE, 
