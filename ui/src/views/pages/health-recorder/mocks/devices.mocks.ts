@@ -1,5 +1,4 @@
-import { SelectOption } from "../../types/ui/common-ui"
-
+import { Device } from "../../../../types/domain/machine.model"
 import { 
   TEMPERATURE_CHECK_DEVICE_ID, 
   VIBRATION_CHECK_DEVICE_ID,
@@ -10,17 +9,13 @@ import {
   PRESSURE,
   HUMIDITY
 } from "../consts"
+import { getDeviceSelectOptions } from "../utils/utils"
 
-export const devices = [
+export const devices: Device[] = [
   { name: TEMPERATURE, id: TEMPERATURE_CHECK_DEVICE_ID },
   { name: VIBRATION, id: VIBRATION_CHECK_DEVICE_ID },
   { name: PRESSURE, id: PRESSURE_CHECK_DEVICE_ID },
   { name: HUMIDITY, id: HUMIDITY_CHECK_DEVICE_ID },
 ]
 
-export const deviceSelectOptions: SelectOption[] = devices.map(device => {
-  return { 
-    value: device.id, 
-    label: `${device.name.charAt(0).toUpperCase() + device.name.slice(1)} Recorder ${device.id}`
-  }
-})
+export const deviceSelectOptions = getDeviceSelectOptions({ devices })

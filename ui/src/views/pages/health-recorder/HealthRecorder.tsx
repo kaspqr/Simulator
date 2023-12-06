@@ -3,27 +3,28 @@ import { Row, Input, Col, Button, Card, CardHeader, CardBody, CardImg } from 're
 import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 
+import { healthCheckerMqttOptions, standardInterval } from './consts/mqtt.const'
+import { machinesTableColumns } from './tables/Machines.table'
+import { HEALTH_CHECK_TOPIC } from './consts'
+import { deviceSelectOptions } from './mocks/devices.mocks'
 import { 
   getErrMsg, 
-  getUpdatedMachineFromRef,
+  getUpdatedMachineFromMessage,
   getValueColor,
   mqttPublishHealthCheck,
-} from '../utils/utils'
+} from './utils/utils'
 
-import tempJpg from '../../assets/img/temp.jpg'
-import { mqttConnect, mqttDisconnect, mqttSub, mqttUnSub } from '../../mqtt/mqttClient'
-import { healthCheckerMqttOptions, standardInterval } from '../consts/mqtt.const'
-import { useGetMachinesQuery, useUpdateMachineMutation } from '../../redux/api/machinesApiSlice'
 import { alerts } from '../../components/feedback/alerts'
-import { Machine, emptyMachine } from '../../types/domain/machine.model'
 import { ReactTable } from '../../components/react-table/ReactTable'
-import { machinesTableColumns } from '../tables/Machines.table'
-import { SelectField } from '../../components/SelectField'
-import { deviceSelectOptions } from '../mocks/devices.mocks'
-import { SelectOption } from '../../types/ui/common-ui'
-import { HEALTH_CHECK_TOPIC } from '../consts'
+import { SelectField } from '../../components/select-field/SelectField'
 
-const HealthChecker = () => {
+import tempJpg from '../../../assets/img/temp.jpg'
+import { mqttConnect, mqttDisconnect, mqttSub, mqttUnSub } from '../../../mqtt/mqttClient'
+import { useGetMachinesQuery, useUpdateMachineMutation } from '../../../redux/api/machinesApiSlice'
+import { Machine, emptyMachine } from '../../../types/domain/machine.model'
+import { SelectOption } from '../../../types/ui/common-ui'
+
+const HealthRecorder = () => {
   const [client, setClient] = useState<any>(null)
   const [payload, setPayload] = useState<any>({})
   const [requiredInterval, setRequiredInterval] = useState<number>(standardInterval)
@@ -55,15 +56,13 @@ const HealthChecker = () => {
 
   useEffect(() => {
     if (client) {
-      client.on('connect', () => console.log('connection successful'))
-      client.on('error', (err: string) => {
-        console.error('Connection error: ', err)
-        client.end()
-      })
       client.on('message', async (topic: string, message: string) => {
         if (machineRef.current === emptyMachine) return
         const messageObj = JSON.parse(message)
-        const updatedMachine = getUpdatedMachineFromRef(message, machineRef.current)
+        const updatedMachine = getUpdatedMachineFromMessage({ 
+          message, 
+          machine: machineRef.current 
+        })
         await updateMachine(updatedMachine)
         setPayload(messageObj)
         setSelectedMachine(updatedMachine)
@@ -76,7 +75,7 @@ const HealthChecker = () => {
     let intervalId: NodeJS.Timeout | null = null
   
     if (running) {
-      mqttSub(client, HEALTH_CHECK_TOPIC, 2)
+      mqttSub({ client, topic: HEALTH_CHECK_TOPIC, qos: 2 })
       intervalId = setInterval(() => {
         mqttPublishHealthCheck({ 
           client, 
@@ -88,8 +87,8 @@ const HealthChecker = () => {
   
     return () => {
       if (intervalId) clearInterval(intervalId)
-      mqttUnSub(client, HEALTH_CHECK_TOPIC, 2)
-      mqttDisconnect(client)
+      mqttUnSub({ client, topic: HEALTH_CHECK_TOPIC, qos: 2 })
+      mqttDisconnect({ client })
     }
   }, [running, requiredInterval])
 
@@ -105,6 +104,10 @@ const HealthChecker = () => {
     )
     if (machineToCheck) setSelectedMachine(machineToCheck)
   }
+
+  const canRecord: boolean = selectedMachine !== undefined && 
+    selectedDevices.length > 0 && 
+    requiredInterval >= 3
 
   if (isLoading) alerts.loadingAlert("Fetching machines", "Loading...")
   if (isError) alerts.errorAlert(`${getErrMsg(error)}`, "Error")
@@ -132,9 +135,10 @@ const HealthChecker = () => {
                         className="form-control-label" 
                         htmlFor='required-interval'
                       >
-                        Interval in seconds
+                        Interval in seconds (min. 3)
                       </label>
                       <Input 
+                        disabled={running}
                         type='number'
                         name='required-interval'
                         min={3}
@@ -164,8 +168,11 @@ const HealthChecker = () => {
                       {!running 
                         ? <Button
                           type='button'
-                          color={selectedMachine && selectedDevices.length ? 'success' : undefined}
-                          disabled={!selectedMachine || !selectedDevices.length}
+                          color={canRecord
+                            ? 'success' 
+                            : undefined
+                          }
+                          disabled={!canRecord}
                           onClick={() => {
                             const newClient = mqttConnect({
                               options: healthCheckerMqttOptions,
@@ -343,4 +350,4 @@ const HealthChecker = () => {
   )
 }
 
-export default HealthChecker
+export default HealthRecorder

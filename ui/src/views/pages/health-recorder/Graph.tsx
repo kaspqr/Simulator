@@ -4,13 +4,13 @@ import { Button, Card, CardBody, CardHeader, Col, Row } from 'reactstrap'
 import { LineChart, XAxis, Tooltip, CartesianGrid, YAxis, Line } from 'recharts'
 import Swal from 'sweetalert2'
 
-import { useGetMachinesQuery, useUpdateMachineMutation } from '../../redux/api/machinesApiSlice'
-import { Machine, emptyMachine } from '../../types/domain/machine.model'
-import { mqttConnect, mqttDisconnect, mqttSub, mqttUnSub } from '../../mqtt/mqttClient'
+import { useGetMachinesQuery, useUpdateMachineMutation } from '../../../redux/api/machinesApiSlice'
+import { Machine, emptyMachine } from '../../../types/domain/machine.model'
+import { mqttConnect, mqttDisconnect, mqttSub, mqttUnSub } from '../../../mqtt/mqttClient'
 import { alerts } from '../../components/feedback/alerts'
 
-import { healthCheckerMqttOptions, standardInterval } from '../consts/mqtt.const'
-import { devices } from '../mocks/devices.mocks'
+import { healthCheckerMqttOptions, standardInterval } from './consts/mqtt.const'
+import { devices } from './mocks/devices.mocks'
 import { 
   TEMPERATURE,
   VIBRATION,
@@ -20,14 +20,15 @@ import {
   Y_AXIS,
   Z_AXIS,
   HEALTH_CHECK_TOPIC,
-} from '../consts'
+} from './consts'
 import { 
   getChartData, 
+  getDeviceSelectOptions, 
   getErrMsg, 
-  getUpdatedMachineFromRef, 
+  getUpdatedMachineFromMessage, 
   getVibrationChartData, 
   mqttPublishHealthCheck 
-} from '../utils/utils'
+} from './utils/utils'
 
 const Graph = () => {
   const { id } = useParams()
@@ -45,7 +46,7 @@ const Graph = () => {
       machine: data?.find((machine: Machine) => machine.id === id)
     }),
     refetchOnMountOrArgChange: true,
-    pollingInterval: standardInterval * 1000
+    pollingInterval: (standardInterval - 1) * 1000
   })
 
   const [updateMachine, {
@@ -74,8 +75,10 @@ const Graph = () => {
     if (client && recording) {
       client.on('message', async (topic: string, message: string) => {
         const machineToUpdate = machineRef.current === emptyMachine ? machine : machineRef.current
-        console.log(machineRef.current === emptyMachine)
-        const updatedMachine = getUpdatedMachineFromRef(message, machineToUpdate)
+        const updatedMachine = getUpdatedMachineFromMessage({
+          message, 
+          machine: machineToUpdate
+        })
         machineRef.current = updatedMachine
         await updateMachine(updatedMachine)
         console.log(`received message: ${message} from topic: ${topic}`)
@@ -88,35 +91,32 @@ const Graph = () => {
     const device = devices.find(device => device.name === health)
   
     if (recording && device) {
-      mqttSub(client, HEALTH_CHECK_TOPIC, 2)
+      mqttSub({ client, topic: HEALTH_CHECK_TOPIC, qos: 2 })
       intervalId = setInterval(() => {
+        const checkOptions = getDeviceSelectOptions({ devices: [device] })
         const newMachine = machineRef.current === emptyMachine ? machine : machineRef.current
-        console.log(newMachine)
         mqttPublishHealthCheck({ 
           client, 
           machine: newMachine, 
-          checkOptions: [{ 
-            value: device.id, 
-            label: `${device.name.charAt(0).toUpperCase() + device.name.slice(1)} Recorder ${device.id}`
-          }]  
+          checkOptions 
         })
-      }, 3000)
+      }, standardInterval * 1000)
     }
   
     return () => {
       if (intervalId) clearInterval(intervalId)
-      mqttUnSub(client, HEALTH_CHECK_TOPIC, 2)
-      mqttDisconnect(client)
+      mqttUnSub({ client, topic: HEALTH_CHECK_TOPIC, qos: 2 })
+      mqttDisconnect({ client })
     }
   }, [recording])
 
   if (isError && error) alerts.errorAlert(`${getErrMsg(error)}`, "Error")
   if (isSuccess) Swal.close()
 
-  const temperatureData = getChartData(machine?.temperature?.recordings, TEMPERATURE)
-  const pressureData = getChartData(machine?.pressure?.recordings, PRESSURE)
-  const humidityData = getChartData(machine?.humidity?.recordings, HUMIDITY)
-  const vibrationData = getVibrationChartData(machine?.vibration?.recordings)
+  const temperatureData = getChartData(machine?.temperature?.recordings, TEMPERATURE).slice(-20)
+  const pressureData = getChartData(machine?.pressure?.recordings, PRESSURE).slice(-20)
+  const humidityData = getChartData(machine?.humidity?.recordings, HUMIDITY).slice(-20)
+  const vibrationData = getVibrationChartData(machine?.vibration?.recordings).slice(-20)
 
   return (
     <Card>

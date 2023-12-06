@@ -1,8 +1,3 @@
-export type DataLine = {
-  key: string;
-  stroke: string;
-}
-
 export interface Recording {
   timestamp: number;
   device_id: string;
@@ -65,6 +60,11 @@ export interface Machine {
   vibration: Vibration;
   pressure: Pressure;
   humidity: Humidity;
+}
+
+export type Device = {
+  name: string;
+  id: string;
 }
 
 export const emptyTemperature: Temperature = {

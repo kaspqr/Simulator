@@ -1,14 +1,27 @@
 import { SerializedError } from '@reduxjs/toolkit'
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query'
 
+import { SelectOption } from '../../../../types/ui/common-ui'
+import { mqttPublish } from '../../../../mqtt/mqttClient'
 import { 
+  Device,
   Machine, 
   Recording, 
   VibrationRecording 
-} from '../../types/domain/machine.model'
-import { mqttPublish } from '../../mqtt/mqttClient'
-import { HEALTH_CHECK_TOPIC, HUMIDITY, HUMIDITY_CHECK_DEVICE_ID, PRESSURE, PRESSURE_CHECK_DEVICE_ID, TEMPERATURE, TEMPERATURE_CHECK_DEVICE_ID, VIBRATION, VIBRATION_CHECK_DEVICE_ID } from '../consts'
-import { SelectOption } from '../../types/ui/common-ui'
+} from '../../../../types/domain/machine.model'
+
+import { 
+  HEALTH_CHECK_TOPIC, 
+  HUMIDITY, 
+  HUMIDITY_CHECK_DEVICE_ID, 
+  PRESSURE, 
+  PRESSURE_CHECK_DEVICE_ID, 
+  TEMPERATURE, 
+  TEMPERATURE_CHECK_DEVICE_ID, 
+  VIBRATION, 
+  VIBRATION_CHECK_DEVICE_ID 
+} from '../consts'
+
 
 export function isFetchBaseQueryError(
   error: unknown
@@ -92,10 +105,13 @@ export const getNewVibrationRecording = ({
   return newVibration
 }
 
-export const getUpdatedMachineFromRef = (message: string, machine: Machine) => {
-  const messageObj = JSON.parse(message)
+type UpdateMachineProps = {
+  message: string;
+  machine: Machine;
+}
 
-  console.log(messageObj)
+export const getUpdatedMachineFromMessage = ({ message, machine }: UpdateMachineProps) => {
+  const messageObj = JSON.parse(message)
 
   const updatedMachine: Machine = {
     ...machine,
@@ -178,14 +194,9 @@ export const mqttPublishHealthCheck = ({
       })
       : undefined
 
-      const newPayload = JSON.stringify({ 
-        temperature, 
-        vibration, 
-        pressure, 
-        humidity 
-      })
+      const payload = JSON.stringify({ temperature, vibration, pressure, humidity })
 
-    mqttPublish(client, newPayload, topic, qos)
+    mqttPublish({ client, topic, qos, payload })
   }
 }
 
@@ -213,4 +224,15 @@ export const getVibrationChartData = (recordings: any) => {
     }
   })
   return data
+}
+
+export const getDeviceSelectOptions = ({ devices }: { devices: Device[] }) => {
+  const deviceSelectOptions: SelectOption[] = devices.map(device => {
+    return { 
+      value: device.id, 
+      label: `${device.name.charAt(0).toUpperCase() + device.name.slice(1)} Recorder ${device.id}`
+    }
+  })
+
+  return deviceSelectOptions
 }

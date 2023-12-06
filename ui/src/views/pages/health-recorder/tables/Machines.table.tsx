@@ -1,8 +1,8 @@
 import { ColumnDef } from "@tanstack/react-table";
 
-import { Machine } from "../../types/domain/machine.model";
-import { ActionColumnPick } from "../../components/react-table/ActionColumnPick";
-import { IDefaultActionButton } from "../../types/react-table/react-table.types";
+import { Machine } from "../../../../types/domain/machine.model";
+import { ActionColumnPick } from "../../../components/react-table/ActionColumnPick";
+import { IDefaultActionButton } from "../../../../types/react-table/react-table.types";
 
 export const machinesTableColumns = ({
   onPickButtonClick,
