@@ -53,6 +53,8 @@ export interface Humidity {
   recordings: HumidityRecording[];
 }
 
+export type MachineSingleValueHealth = Temperature | Pressure | Humidity
+
 export interface Machine {
   id: string;
   name: string;

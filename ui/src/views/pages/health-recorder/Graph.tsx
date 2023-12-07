@@ -22,9 +22,9 @@ import {
   HEALTH_CHECK_TOPIC,
 } from './consts'
 import { 
-  getChartData, 
   getDeviceSelectOptions, 
   getErrMsg, 
+  getLineChartData, 
   getUpdatedMachineFromMessage, 
   getVibrationChartData, 
   mqttPublishHealthCheck 
@@ -35,8 +35,8 @@ const Graph = () => {
 
   const [health, setHealth] = useState<string>(TEMPERATURE)
   const [recording, setRecording] = useState<boolean>(false)
-  const [cardWidth, setCardWidth] = useState<number | null>(null)
-  const [client, setClient] = useState<any>(null)
+  const [cardWidth, setCardWidth] = useState<number | undefined>(undefined)
+  const [client, setClient] = useState<any>(undefined)
 
   const cardRef = useRef<HTMLDivElement>(null)
   const machineRef = useRef<Machine>(emptyMachine)
@@ -62,13 +62,9 @@ const Graph = () => {
         setCardWidth(width)
       }
     }
-
     handleResize()
     window.addEventListener('resize', handleResize)
-
-    return () => {
-      window.removeEventListener('resize', handleResize)
-    }
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   useEffect(() => {
@@ -113,10 +109,8 @@ const Graph = () => {
   if (isError && error) alerts.errorAlert(`${getErrMsg(error)}`, "Error")
   if (isSuccess) Swal.close()
 
-  const temperatureData = getChartData(machine?.temperature?.recordings, TEMPERATURE).slice(-20)
-  const pressureData = getChartData(machine?.pressure?.recordings, PRESSURE).slice(-20)
-  const humidityData = getChartData(machine?.humidity?.recordings, HUMIDITY).slice(-20)
-  const vibrationData = getVibrationChartData(machine?.vibration?.recordings).slice(-20)
+  const vibrationData = getVibrationChartData(machine?.vibration?.recordings)
+  const lineChartData = getLineChartData(health, machine)
 
   return (
     <Card>
@@ -197,15 +191,9 @@ const Graph = () => {
             <LineChart 
               width={cardWidth ? Math.floor(cardWidth * 0.9) : 600} 
               height={300} 
-              data={health === TEMPERATURE 
-                ? temperatureData
-                : health === PRESSURE
-                  ? pressureData
-                  : health === HUMIDITY
-                    ? humidityData
-                    : health === VIBRATION
-                      ? vibrationData
-                      : undefined
+              data={health === VIBRATION 
+                ? vibrationData?.slice(-20) 
+                : lineChartData.data?.slice(-20)
               }
               margin={{ right: 20, left: 10 }}
             >
@@ -221,22 +209,8 @@ const Graph = () => {
                 </>
                 : <Line 
                   type="monotone" 
-                  dataKey={health === TEMPERATURE 
-                    ? TEMPERATURE
-                    : health === PRESSURE
-                      ? PRESSURE
-                      : health === HUMIDITY
-                        ? HUMIDITY
-                        : undefined
-                  }
-                  stroke={health === TEMPERATURE 
-                    ? "olivedrab"
-                    : health === PRESSURE
-                      ? "hotpink"
-                      : health === HUMIDITY
-                        ? "tomato"
-                        : undefined
-                  }
+                  dataKey={lineChartData.dataKey}
+                  stroke={lineChartData.stroke}
                 />
               }
             </LineChart>

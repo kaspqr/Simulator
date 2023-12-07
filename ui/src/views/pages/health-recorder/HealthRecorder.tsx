@@ -211,7 +211,10 @@ const HealthRecorder = () => {
               <CardImg alt="temperature-icon" src={tempJpg} top />
               <Row>
                 <Col className='heading text-center mt-4'>
-                  {selectedMachine ? selectedMachine.name : 'Pick Machine'}
+                  {selectedMachine 
+                    ? `${selectedMachine.name} ${selectedMachine.id}` 
+                    : 'Pick Machine'
+                  }
                 </Col>
               </Row>
               {selectedMachine && 

@@ -6,6 +6,7 @@ import { mqttPublish } from '../../../../mqtt/mqttClient'
 import { 
   Device,
   Machine, 
+  MachineSingleValueHealth, 
   Recording, 
   VibrationRecording 
 } from '../../../../types/domain/machine.model'
@@ -211,7 +212,27 @@ export const getChartData = (recordings: any, key: string) => {
       [key]: recording?.[key]
     }
   })
-  return data
+
+  const stroke = key === TEMPERATURE 
+    ? "olivedrab"
+    : key === PRESSURE
+      ? "hotpink"
+      : "tomato"
+  
+  const chartData = {
+    data,
+    dataKey: key,
+    stroke
+  }
+
+  return chartData
+}
+
+export const getLineChartData = (health: string, machine: Machine) => {
+  const healthProperty = machine?.[health as keyof Machine] as MachineSingleValueHealth
+  const recordings = healthProperty?.recordings
+  const chartData = getChartData(recordings, health)
+  return chartData
 }
 
 export const getVibrationChartData = (recordings: any) => {
