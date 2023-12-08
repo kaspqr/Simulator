@@ -1,4 +1,4 @@
-import { Device } from "../../../../types/domain/machine.model"
+import { Device } from "../types/domain/machine.model"
 import { 
   TEMPERATURE_CHECK_DEVICE_ID, 
   VIBRATION_CHECK_DEVICE_ID,
@@ -8,8 +8,8 @@ import {
   VIBRATION,
   PRESSURE,
   HUMIDITY
-} from "../consts"
-import { getDeviceSelectOptions } from "../utils/utils"
+} from "../common/consts"
+import { getDeviceSelectOptions } from "../views/pages/health-recorder/utils/utils"
 
 export const devices: Device[] = [
   { name: TEMPERATURE, id: TEMPERATURE_CHECK_DEVICE_ID },

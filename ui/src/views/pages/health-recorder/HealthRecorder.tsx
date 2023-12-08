@@ -3,15 +3,14 @@ import { Row, Input, Col, Button, Card, CardHeader, CardBody, CardImg } from 're
 import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 
-import { healthCheckerMqttOptions, standardInterval } from './consts/mqtt.const'
+import { healthCheckerMqttOptions, standardInterval } from '../../../common/consts/mqtt.const'
 import { machinesTableColumns } from './tables/Machines.table'
-import { HEALTH_CHECK_TOPIC } from './consts'
-import { deviceSelectOptions } from './mocks/devices.mocks'
+import { HEALTH_CHECK_TOPIC } from '../../../common/consts'
+import { deviceSelectOptions } from '../../../mocks/devices.mocks'
 import { 
   getErrMsg, 
   getUpdatedMachineFromMessage,
   getValueColor,
-  mqttPublishHealthCheck,
 } from './utils/utils'
 
 import { alerts } from '../../components/feedback/alerts'
@@ -19,6 +18,7 @@ import { ReactTable } from '../../components/react-table/ReactTable'
 import { SelectField } from '../../components/select-field/SelectField'
 
 import tempJpg from '../../../assets/img/temp.jpg'
+import { mqttPublishHealthCheck } from '../../../mqtt/services/machine.mqtt.service'
 import { mqttConnect, mqttDisconnect, mqttSub, mqttUnSub } from '../../../mqtt/mqttClient'
 import { useGetMachinesQuery, useUpdateMachineMutation } from '../../../redux/api/machinesApiSlice'
 import { Machine, emptyMachine } from '../../../types/domain/machine.model'

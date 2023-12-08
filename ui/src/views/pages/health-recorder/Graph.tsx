@@ -4,13 +4,12 @@ import { Button, Card, CardBody, CardHeader, Col, Row } from 'reactstrap'
 import { LineChart, XAxis, Tooltip, CartesianGrid, YAxis, Line } from 'recharts'
 import Swal from 'sweetalert2'
 
+import { mqttPublishHealthCheck } from '../../../mqtt/services/machine.mqtt.service'
 import { useGetMachinesQuery, useUpdateMachineMutation } from '../../../redux/api/machinesApiSlice'
 import { Machine, emptyMachine } from '../../../types/domain/machine.model'
 import { mqttConnect, mqttDisconnect, mqttSub, mqttUnSub } from '../../../mqtt/mqttClient'
-import { alerts } from '../../components/feedback/alerts'
-
-import { healthCheckerMqttOptions, standardInterval } from './consts/mqtt.const'
-import { devices } from './mocks/devices.mocks'
+import { healthCheckerMqttOptions, standardInterval } from '../../../common/consts/mqtt.const'
+import { devices } from '../../../mocks/devices.mocks'
 import { 
   TEMPERATURE,
   VIBRATION,
@@ -20,14 +19,16 @@ import {
   Y_AXIS,
   Z_AXIS,
   HEALTH_CHECK_TOPIC,
-} from './consts'
+} from '../../../common/consts'
+
+import { alerts } from '../../components/feedback/alerts'
+
 import { 
   getDeviceSelectOptions, 
   getErrMsg, 
   getLineChartData, 
   getUpdatedMachineFromMessage, 
   getVibrationChartData, 
-  mqttPublishHealthCheck 
 } from './utils/utils'
 
 const Graph = () => {
@@ -124,7 +125,10 @@ const Graph = () => {
       <CardBody className='ml-4'>
         <Row>
           <Button
-            onClick={() => setHealth(TEMPERATURE)}
+            onClick={() => {
+              setHealth(TEMPERATURE)
+              setRecording(false)
+            }}
             type='button'
             color='primary'
           >
@@ -132,21 +136,30 @@ const Graph = () => {
           </Button>
           <Button
             color='primary'
-            onClick={() => setHealth(VIBRATION)}
+            onClick={() => {
+              setHealth(VIBRATION)
+              setRecording(false)
+            }}
             type='button'
           >
             Vibration
           </Button>
           <Button
             color='primary'
-            onClick={() => setHealth(PRESSURE)}
+            onClick={() => {
+              setHealth(PRESSURE)
+              setRecording(false)
+            }}
             type='button'
           >
             Pressure
           </Button>
           <Button
             color='primary'
-            onClick={() => setHealth(HUMIDITY)}
+            onClick={() => {
+              setHealth(HUMIDITY)
+              setRecording(false)
+            }}
             type='button'
           >
             Humidity
