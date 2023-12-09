@@ -3,7 +3,7 @@ import { Row, Input, Col, Button, Card, CardHeader, CardBody, CardImg } from 're
 import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 
-import { healthCheckerMqttOptions, standardInterval } from '../../../common/consts/mqtt.const'
+import { healthCheckerMqttOptions, STANDARD_INTERVAL } from '../../../common/consts/mqtt.const'
 import { machinesTableColumns } from './tables/Machines.table'
 import { HEALTH_CHECK_TOPIC } from '../../../common/consts'
 import { deviceSelectOptions } from '../../../mocks/devices.mocks'
@@ -27,7 +27,7 @@ import { SelectOption } from '../../../types/ui/common-ui'
 const HealthRecorder = () => {
   const [client, setClient] = useState<any>(null)
   const [payload, setPayload] = useState<any>({})
-  const [requiredInterval, setRequiredInterval] = useState<number>(standardInterval)
+  const [requiredInterval, setRequiredInterval] = useState<number>(STANDARD_INTERVAL)
   const [running, setRunning] = useState<boolean>(false)
   const [selectedMachine, setSelectedMachine] = useState<Machine | undefined>(undefined)
   const [selectedDevices, setSelectedDevices] = useState<SelectOption[]>([])

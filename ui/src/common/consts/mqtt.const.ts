@@ -4,4 +4,4 @@ export const healthCheckerMqttOptions = {
   connectTimeout: 30 * 1000
 }
 
-export const standardInterval = 3
+export const STANDARD_INTERVAL = 3

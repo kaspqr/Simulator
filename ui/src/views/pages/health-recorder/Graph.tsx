@@ -8,7 +8,7 @@ import { mqttPublishHealthCheck } from '../../../mqtt/services/machine.mqtt.serv
 import { useGetMachinesQuery, useUpdateMachineMutation } from '../../../redux/api/machinesApiSlice'
 import { Machine, emptyMachine } from '../../../types/domain/machine.model'
 import { mqttConnect, mqttDisconnect, mqttSub, mqttUnSub } from '../../../mqtt/mqttClient'
-import { healthCheckerMqttOptions, standardInterval } from '../../../common/consts/mqtt.const'
+import { healthCheckerMqttOptions, STANDARD_INTERVAL } from '../../../common/consts/mqtt.const'
 import { devices } from '../../../mocks/devices.mocks'
 import { 
   TEMPERATURE,
@@ -47,7 +47,7 @@ const Graph = () => {
       machine: data?.find((machine: Machine) => machine.id === id)
     }),
     refetchOnMountOrArgChange: true,
-    pollingInterval: (standardInterval - 1) * 1000
+    pollingInterval: (STANDARD_INTERVAL - 1) * 1000
   })
 
   const [updateMachine, {
@@ -97,7 +97,7 @@ const Graph = () => {
           machine: newMachine, 
           checkOptions 
         })
-      }, standardInterval * 1000)
+      }, STANDARD_INTERVAL * 1000)
     }
   
     return () => {
